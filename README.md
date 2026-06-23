@@ -4,7 +4,7 @@ A reusable GitHub Action that automatically assigns the pull request author as a
 
 ## Usage
 
-Add the following workflow to your repository at `.github/workflows/self-assign.yml`. Replace `<OWNER>` with your own GitHub account or organization that hosts this action.
+Add the following workflow to your repository at `.github/workflows/self-assign.yml`:
 
 ```yaml
 name: Self Assign
@@ -20,7 +20,7 @@ jobs:
   self-assign:
     runs-on: ubuntu-latest
     steps:
-      - uses: <OWNER>/action_self_assign@v1
+      - uses: raphaelIl/action_self_assign@v1
         with:
           # Optional. Defaults to the automatic GITHUB_TOKEN.
           repo-token: ${{ github.token }}
