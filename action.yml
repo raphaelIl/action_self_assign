@@ -1,0 +1,63 @@
+name: 'Self Assign PR Author'
+description: 'Automatically assigns the pull request author as an assignee when a PR is opened.'
+author: 'raphael'
+
+branding:
+  icon: 'user-check'
+  color: 'blue'
+
+inputs:
+  repo-token:
+    description: 'GitHub token used to assign the PR author. Defaults to the automatic GITHUB_TOKEN of the workflow.'
+    required: false
+    default: ${{ github.token }}
+  skip-bots:
+    description: 'When "true", pull requests opened by bot accounts (e.g. dependabot[bot]) are skipped.'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Assign PR author as assignee
+      uses: actions/github-script@v9
+      env:
+        SKIP_BOTS: ${{ inputs.skip-bots }}
+      with:
+        github-token: ${{ inputs.repo-token }}
+        script: |
+          const pr = context.payload.pull_request;
+          if (!pr) {
+            core.setFailed(
+              'self-assign: no pull_request payload found. ' +
+              'Trigger this action with a `pull_request` or `pull_request_target` event.'
+            );
+            return;
+          }
+
+          const author = pr.user.login;
+
+          // 봇 작성자 건너뛰기 (옵션)
+          if (process.env.SKIP_BOTS === 'true' && pr.user.type === 'Bot') {
+            core.info(`self-assign: skipping bot author @${author}.`);
+            return;
+          }
+
+          // 이미 작성자가 assignee면 API 호출 생략 (멱등성)
+          const alreadyAssigned = (pr.assignees || []).some((a) => a.login === author);
+          if (alreadyAssigned) {
+            core.info(`self-assign: @${author} is already an assignee — nothing to do.`);
+            return;
+          }
+
+          try {
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              assignees: [author],
+            });
+            core.info(`self-assign: assigned PR #${pr.number} to its author @${author}.`);
+          } catch (error) {
+            core.setFailed(`self-assign: failed to assign @${author} — ${error.message}`);
+          }
